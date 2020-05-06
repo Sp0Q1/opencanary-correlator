@@ -3,6 +3,7 @@ from opencanary_correlator.common.logs import logger
 from opencanary_correlator.common.emailer import mandrill_send, send_email
 import opencanary_correlator.common.config as c
 import requests
+import tweepy
 
 class SMS:
     def send(self, destination, message):
@@ -57,3 +58,18 @@ def notify(incident):
                 )
             if response.status_code != 200:
                 logger.error("Error %s sending Slack message, the response was:\n%s" % (response.status_code, response.text))
+
+    if c.config.getVal('console.twitter_notification_enable', default=False):
+        logger.debug('Twitter notifications enabled')
+        auth = tweepy.OAuthHandler(c.config.getVal('consumer_key', default=''), c.config.getVal('consumer_secret', default=''))
+        auth.set_access_token(c.config.getVal('access_token', default=''), c.config.getVal('access_token_secret', default=''))
+        api = tweepy.API(auth)
+        tweet = incident.format_report_short()[:280]
+        status = api.update_status(status=tweet)
+        logger.log(status)
+
+
+    if c.config.getVal('console.file_notification_enable', default=False):
+        logger.debug('File notifications enabled')
+        with open(c.config.getVal('file_path', default=''), "a") as myfile:
+            myfile.write(incident.format_report() + '\r\n')
